@@ -1,0 +1,46 @@
+version: "3.8"
+services:
+  db:
+    image: postgres
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=postgres
+    ports:
+      - "5432:5432"
+  
+  init:
+    image: hashicorp/boundary
+    environment:
+      - BOUNDARY_POSTGRES_URL=postgresql://postgres:postgres@db:5432/postgres?sslmode=disable
+    command: database init -config /boundary/config.hcl
+    volumes:
+    - ./controller:/boundary/
+    links:
+      - db
+    depends_on:
+      - db
+
+  controller:
+    image: hashicorp/boundary
+    environment:
+      - BOUNDARY_POSTGRES_URL=postgresql://postgres:postgres@db:5432/postgres?sslmode=disable
+    volumes:
+    - ./controller:/boundary/
+    ports:
+      - "9200:9200"
+      - "9201:9201"
+    links:
+      - db
+    depends_on:
+      - init
+
+  worker:
+    image: hashicorp/boundary
+    volumes:
+    - ./worker:/boundary/
+    ports:
+      - "9202:9202"
+    links:
+      - controller
+    depends_on:
+      - init
